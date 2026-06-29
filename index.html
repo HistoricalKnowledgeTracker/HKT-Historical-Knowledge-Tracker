@@ -540,7 +540,7 @@ body::before{content:'';position:fixed;bottom:0;left:0;width:100%;height:200px;b
 
           <!-- ผลการคำนวณ -->
           <div class="bill-summary-card" id="bill-calc-result" style="display:none">
-            <div class="bill-summary-title"><i class="ti ti-chart-bar"></i> ผลการคำนวณจากข้อมูลที่วาง</div>
+            <div class="bill-summary-title"><i class="ti ti-chart-bar"></i> ผลรวมทุกการไฟฟ้า</div>
             <div class="bill-summary-grid">
               <div class="bill-sum-item">
                 <div class="bill-sum-label">จำนวนสายทั้งหมด</div>
@@ -548,23 +548,37 @@ body::before{content:'';position:fixed;bottom:0;left:0;width:100%;height:200px;b
                 <div class="bill-sum-sub">สาย</div>
               </div>
               <div class="bill-sum-item">
-                <div class="bill-sum-label">จำนวนฉบับทั้งหมด</div>
-                <div class="bill-sum-value" id="calc-count">0</div>
+                <div class="bill-sum-label">พิมพ์ปกติทั้งหมด</div>
+                <div class="bill-sum-value" id="calc-normal">0</div>
                 <div class="bill-sum-sub">ฉบับ</div>
               </div>
               <div class="bill-sum-item">
-                <div class="bill-sum-label">แถวข้อมูล</div>
-                <div class="bill-sum-value" id="calc-rows">0</div>
-                <div class="bill-sum-sub">แถว</div>
+                <div class="bill-sum-label">พิมพ์ซ่อมทั้งหมด</div>
+                <div class="bill-sum-value" id="calc-repair">0</div>
+                <div class="bill-sum-sub">ฉบับ</div>
               </div>
               <div class="bill-sum-item">
-                <div class="bill-sum-label">หมายเหตุ</div>
-                <div class="bill-sum-value" id="calc-notes">-</div>
-                <div class="bill-sum-sub">รายการที่มีหมายเหตุ</div>
+                <div class="bill-sum-label">รวมพิมพ์ทั้งหมด</div>
+                <div class="bill-sum-value" id="calc-count">0</div>
+                <div class="bill-sum-sub">ฉบับ</div>
               </div>
             </div>
-            <div id="bill-calc-damaged-wrap" class="bill-damaged-list"></div>
-            <p style="font-size:11px;color:#888;margin-top:10px">✓ ตัวเลขด้านบนถูกกรอกลงในฟอร์มบันทึกด้านล่างให้แล้ว — ตรวจสอบและแก้ไขก่อนกดบันทึก</p>
+
+            <div class="bill-summary-title" style="margin-top:16px"><i class="ti ti-building"></i> แยกตามการไฟฟ้า</div>
+            <table class="table" style="background:#fff;border-radius:8px;overflow:hidden">
+              <thead>
+                <tr>
+                  <th>การไฟฟ้า</th>
+                  <th style="text-align:center">จำนวนสาย</th>
+                  <th style="text-align:center">พิมพ์ปกติ</th>
+                  <th style="text-align:center">พิมพ์ซ่อม</th>
+                  <th style="text-align:center">รวมพิมพ์</th>
+                </tr>
+              </thead>
+              <tbody id="calc-per-office-tbody"></tbody>
+            </table>
+
+            <p style="font-size:11px;color:#888;margin-top:10px">✓ ยอด "จำนวนสายทั้งหมด" และ "รวมพิมพ์ทั้งหมด" ถูกกรอกลงในฟอร์มบันทึกด้านล่างให้แล้ว — ตรวจสอบและแก้ไขก่อนกดบันทึก</p>
           </div>
         </div>
 
@@ -1156,13 +1170,13 @@ function calcBillSummary() {
 
   parsedBillResult = { grandRoutes, grandNormal, grandRepair, grandTotal, perOffice };
 
-  // === แสดง summary card ===
+  // === แสดง summary card (ยอดรวมทั้งหมด) ===
   document.getElementById('calc-routes').textContent = grandRoutes.toLocaleString();
+  document.getElementById('calc-normal').textContent = grandNormal.toLocaleString();
+  document.getElementById('calc-repair').textContent = grandRepair.toLocaleString();
   document.getElementById('calc-count').textContent  = grandTotal.toLocaleString();
-  document.getElementById('calc-rows').textContent   = grandNormal.toLocaleString();
-  document.getElementById('calc-notes').textContent  = grandRepair.toLocaleString();
 
-  // ตารางรายการไฟฟ้า
+  // ตารางแยกตามการไฟฟ้า
   const tbody = document.getElementById('calc-per-office-tbody');
   tbody.innerHTML = perOffice.map(o => `
     <tr>
@@ -1175,7 +1189,7 @@ function calcBillSummary() {
 
   document.getElementById('bill-calc-result').style.display = 'block';
 
-  // กรอกค่าลงฟอร์ม
+  // กรอกค่าลงฟอร์ม (จำนวนสายทั้งหมด + รวมพิมพ์ทั้งหมด)
   document.getElementById('bill-routes').value      = grandRoutes;
   document.getElementById('bill-total-count').value = grandTotal;
 
