@@ -1031,7 +1031,7 @@ function saveEdit() {
 
 // ====== BILLS — drag-drop + SheetJS ======
 let loadedWorkbook = null;
-let activeSheetData = []; // array of row arrays
+let parsedBillResult = null; // { grandTotal, grandRoutes, perOffice: [{name, routes, normal, repair, total}] }
 
 function handleDragOver(e) {
   e.preventDefault();
@@ -1062,16 +1062,10 @@ function loadExcelFile(file) {
     try {
       loadedWorkbook = XLSX.read(e.target.result, { type: 'array' });
       const sheetNames = loadedWorkbook.SheetNames;
-
-      // populate sheet selector
       const sel = document.getElementById('sheet-select');
       sel.innerHTML = sheetNames.map((n,i) => `<option value="${i}">${n}</option>`).join('');
       document.getElementById('sheet-select-wrap').style.display = sheetNames.length > 1 ? 'flex' : 'none';
 
-      // load first sheet
-      loadSheet(0);
-
-      // update drop zone UI
       const zone = document.getElementById('dropZone');
       zone.classList.add('has-file');
       document.getElementById('dropLabel').textContent = '✓ โหลดไฟล์สำเร็จ';
@@ -1085,85 +1079,112 @@ function loadExcelFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
-function loadSheet(idx) {
-  if (!loadedWorkbook) return;
-  const sheetName = loadedWorkbook.SheetNames[idx];
-  const ws = loadedWorkbook.Sheets[sheetName];
-  // convert to array-of-arrays, skipping empty rows
-  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-  activeSheetData = raw.filter(row => row.some(cell => String(cell).trim() !== ''));
-}
-
 function onSheetChange() {
-  const idx = parseInt(document.getElementById('sheet-select').value) || 0;
-  loadSheet(idx);
-  // reset calc result
   document.getElementById('bill-calc-result').style.display = 'none';
+  parsedBillResult = null;
   showToast('เปลี่ยนชีตแล้ว — กด "คำนวณสรุป" ใหม่');
 }
 
 function calcBillSummary() {
-  if (!activeSheetData.length) {
-    showToast('กรุณาลากไฟล์ Excel มาก่อน');
+  if (!loadedWorkbook) { showToast('กรุณาลากไฟล์ Excel มาก่อน'); return; }
+
+  const sheetIdx  = parseInt(document.getElementById('sheet-select').value) || 0;
+  const sheetName = loadedWorkbook.SheetNames[sheetIdx];
+  const ws        = loadedWorkbook.Sheets[sheetName];
+  // แปลงเป็น array-of-arrays (col 0–19)
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  // โครงสร้างที่รู้แล้ว:
+  // - แถวชื่อการไฟฟ้า: col[3] มีข้อความ "F0xxxx - กฟอ./กฟย.ชื่อ"
+  // - แถวสรุปสาย: col[4] มีข้อความขึ้นต้นด้วย "จำนวนสายทั้งหมด" และ col[10]="รวมพิมพ์", col[12]=ตัวเลข
+  // - แถวพิมพ์ปกติ: col[10]="พิมพ์ปกติ", col[12]=ตัวเลข
+  // - แถวพิมพ์ซ่อม: col[10]="พิมพ์ซ่อม", col[12]=ตัวเลข
+  // - แถวรวมทุกการไฟฟ้า: col[4] ขึ้นต้น "รวมทุกการไฟฟ้า"
+
+  const perOffice = [];
+  let grandRoutes = 0;
+  let grandNormal = 0;
+  let grandRepair = 0;
+  let grandTotal  = 0;
+  let currentOffice = null;
+
+  raw.forEach((row, i) => {
+    const c3  = String(row[3]  || '').trim();
+    const c4  = String(row[4]  || '').trim();
+    const c10 = String(row[10] || '').trim();
+    const c12 = String(row[12] || '').replace(/,/g,'').trim();
+
+    // แถวชื่อการไฟฟ้า: col3 มีรหัส F0xxxx
+    if (/^F\d{3,}/.test(c3)) {
+      // บันทึกอันก่อนหน้า (ถ้ามี)
+      if (currentOffice) perOffice.push(currentOffice);
+      currentOffice = { name: c3, routes: 0, normal: 0, repair: 0, total: 0 };
+    }
+
+    // แถว "จำนวนสายทั้งหมด X สาย" — ดึงตัวเลขสาย
+    if (c4.startsWith('จำนวนสายทั้งหมด') && currentOffice) {
+      const m = c4.match(/(\d+)/);
+      if (m) currentOffice.routes = parseInt(m[1]);
+    }
+
+    // แถวรวมทุกการไฟฟ้า (grand total)
+    if (c4.startsWith('รวมทุกการไฟฟ้า')) {
+      const m = c4.match(/(\d+)/);
+      if (m) grandRoutes = parseInt(m[1]);
+    }
+
+    // พิมพ์ปกติ / พิมพ์ซ่อม / รวมพิมพ์ — ของการไฟฟ้าปัจจุบัน
+    if (currentOffice) {
+      if (c10 === 'พิมพ์ปกติ')  currentOffice.normal = parseInt(c12) || 0;
+      if (c10 === 'พิมพ์ซ่อม')  currentOffice.repair = parseInt(c12) || 0;
+      if (c10 === 'รวมพิมพ์')   currentOffice.total  = parseInt(c12) || 0;
+    }
+
+    // พิมพ์ปกติทั้งหมด / พิมพ์ซ่อมทั้งหมด / รวมทั้งหมด
+    if (c10 === 'พิมพ์ปกติทั้งหมด') grandNormal = parseInt(c12) || 0;
+    if (c10 === 'พิมพ์ซ่อมทั้งหมด') grandRepair = parseInt(c12) || 0;
+    if (c10 === 'รวมทั้งหมด')        grandTotal  = parseInt(c12) || 0;
+  });
+
+  // push อันสุดท้าย
+  if (currentOffice) perOffice.push(currentOffice);
+
+  if (!perOffice.length && grandTotal === 0) {
+    showToast('ไม่พบข้อมูลในไฟล์นี้ — ตรวจสอบว่าเป็น ReportDailyPrint ที่ถูกต้อง');
     return;
   }
 
-  // Try to detect header row and find column indices
-  // Expected columns (Thai): ลำดับ | พิมพ์ใบเสร็จ | สาย | ใบแจ้งค่าไฟฟ้าเลขที่ | จำนวนฉบับ | หมายเหตุ
-  let dataRows = activeSheetData;
-  let colRoute = 2;   // default col index for "สาย"
-  let colCount = 4;   // default col index for "จำนวนฉบับ"
-  let colNote  = 5;   // default col index for "หมายเหตุ"
+  parsedBillResult = { grandRoutes, grandNormal, grandRepair, grandTotal, perOffice };
 
-  // Scan first 5 rows for header
-  for (let r = 0; r < Math.min(5, dataRows.length); r++) {
-    const row = dataRows[r].map(c => String(c).trim());
-    const hasRoute = row.findIndex(c => c.includes('สาย'));
-    const hasCount = row.findIndex(c => c.includes('ฉบับ') || c.includes('จำนวน'));
-    const hasNote  = row.findIndex(c => c.includes('หมายเหตุ'));
-    if (hasRoute >= 0 && hasCount >= 0) {
-      colRoute = hasRoute;
-      colCount = hasCount;
-      if (hasNote >= 0) colNote = hasNote;
-      dataRows = dataRows.slice(r + 1); // skip header
-      break;
-    }
-  }
+  // === แสดง summary card ===
+  document.getElementById('calc-routes').textContent = grandRoutes.toLocaleString();
+  document.getElementById('calc-count').textContent  = grandTotal.toLocaleString();
+  document.getElementById('calc-rows').textContent   = grandNormal.toLocaleString();
+  document.getElementById('calc-notes').textContent  = grandRepair.toLocaleString();
 
-  let totalCount = 0;
-  let noteCount  = 0;
-  const routeSet = new Set();
+  // ตารางรายการไฟฟ้า
+  const tbody = document.getElementById('calc-per-office-tbody');
+  tbody.innerHTML = perOffice.map(o => `
+    <tr>
+      <td style="color:#5C5277;font-size:12px">${o.name}</td>
+      <td style="text-align:center;font-weight:700;color:#7F77DD">${o.routes}</td>
+      <td style="text-align:center;color:#3B6D11">${o.normal.toLocaleString()}</td>
+      <td style="text-align:center;color:#A32D2D">${o.repair.toLocaleString()}</td>
+      <td style="text-align:center;font-weight:700;color:#D4537E">${o.total.toLocaleString()}</td>
+    </tr>`).join('');
 
-  dataRows.forEach(row => {
-    const routeVal = String(row[colRoute] || '').trim();
-    const countRaw = String(row[colCount] || '0').replace(/,/g,'');
-    const countVal = parseFloat(countRaw) || 0;
-    const noteVal  = String(row[colNote]  || '').trim();
-
-    if (routeVal) routeSet.add(routeVal);
-    totalCount += countVal;
-    if (noteVal) noteCount++;
-  });
-
-  const totalRoutes = routeSet.size || dataRows.length;
-
-  // Show result card
-  document.getElementById('calc-routes').textContent = totalRoutes;
-  document.getElementById('calc-count').textContent  = Math.round(totalCount).toLocaleString();
-  document.getElementById('calc-rows').textContent   = dataRows.length;
-  document.getElementById('calc-notes').textContent  = noteCount || '-';
   document.getElementById('bill-calc-result').style.display = 'block';
 
-  // Pre-fill form
-  document.getElementById('bill-routes').value      = totalRoutes;
-  document.getElementById('bill-total-count').value = Math.round(totalCount);
+  // กรอกค่าลงฟอร์ม
+  document.getElementById('bill-routes').value      = grandRoutes;
+  document.getElementById('bill-total-count').value = grandTotal;
 
-  showToast(`คำนวณเสร็จ: ${totalRoutes} สาย / ${Math.round(totalCount).toLocaleString()} ฉบับ`);
+  showToast(`คำนวณเสร็จ: ${grandRoutes} สาย / ${grandTotal.toLocaleString()} ฉบับ (${perOffice.length} การไฟฟ้า)`);
 }
 
 function clearBillPaste() {
   loadedWorkbook = null;
-  activeSheetData = [];
+  parsedBillResult = null;
   document.getElementById('fileInput').value = '';
   const zone = document.getElementById('dropZone');
   zone.classList.remove('has-file','drag-over');
