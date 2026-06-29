@@ -34,6 +34,14 @@ body::before{content:'';position:fixed;bottom:0;left:0;width:100%;height:200px;b
 .logo-title{font-size:15px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:8px}
 .logo-icon{width:28px;height:28px;background:linear-gradient(135deg,#7F77DD,#D4537E,#F0997B);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;letter-spacing:0.5px}
 .logo-sub{font-size:11px;color:#999;margin-top:3px}
+@keyframes hktMarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes hktShimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+.hkt-subtitle-track{overflow:hidden;position:relative;display:block}
+.hkt-subtitle-track::before,.hkt-subtitle-track::after{content:'';position:absolute;top:0;bottom:0;width:14px;z-index:2;pointer-events:none}
+.hkt-subtitle-track::before{left:0;background:linear-gradient(90deg,#fff,transparent)}
+.hkt-subtitle-track::after{right:0;background:linear-gradient(270deg,#fff,transparent)}
+.hkt-subtitle-scroll{display:inline-flex;white-space:nowrap;animation:hktMarquee 9s linear infinite;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#534AB7;-webkit-text-stroke:0.3px #3C3489}
+.hkt-subtitle-scroll span{padding-right:28px;background:linear-gradient(90deg,#534AB7,#993556,#D85A30,#534AB7);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:hktShimmer 3s linear infinite}
 .nav{padding:12px 8px;flex:1;overflow-y:auto}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:7px;cursor:pointer;font-size:13px;color:#666;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;transition:all 0.15s}
 .nav-item:hover{background:#f0f0ea;color:#1a1a1a}
@@ -193,7 +201,7 @@ body::before{content:'';position:fixed;bottom:0;left:0;width:100%;height:200px;b
 .login-logo{text-align:center;margin-bottom:22px}
 .login-logo .logo-icon{width:52px;height:52px;border-radius:50%;font-size:14px;font-weight:700;letter-spacing:0.5px;margin:0 auto 14px;box-shadow:0 8px 18px -6px rgba(124,77,255,0.45)}
 .login-logo h1{font-size:19px;font-weight:400;font-family:'Pacifico',cursive;color:#ffffff;background:linear-gradient(135deg,#7F77DD,#D4537E,#F0997B);padding:9px 22px;border-radius:30px;letter-spacing:0.3px;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 8px 20px -8px rgba(212,83,126,0.5)}
-.login-logo p{font-size:13px;color:#D4537E;margin-top:9px;font-style:italic;letter-spacing:0.3px;font-family:'Dancing Script',cursive}
+.login-logo .hkt-subtitle-track{margin-top:9px;width:230px;margin-left:auto;margin-right:auto}
 .login-select-label{font-size:10.5px;color:#a880c0;letter-spacing:0.8px;font-weight:600;text-transform:uppercase;margin-bottom:10px;padding-left:2px}
 .user-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:18px}
 
@@ -233,7 +241,9 @@ body::before{content:'';position:fixed;bottom:0;left:0;width:100%;height:200px;b
       <div class="login-logo">
         <div class="logo-icon">PEA</div>
         <h1><i class="ti ti-sparkles" style="font-size:16px"></i>HKT REPORT</h1>
-        <p>Historical Knowledge Tracker</p>
+        <div class="hkt-subtitle-track">
+          <div class="hkt-subtitle-scroll"><span>Historical Knowledge Tracker</span><span>Historical Knowledge Tracker</span></div>
+        </div>
       </div>
       <div class="login-select-label">เลือกผู้ใช้เพื่อเข้าสู่ระบบ</div>
       <div id="user-list" class="user-list"></div>
@@ -268,7 +278,9 @@ body::before{content:'';position:fixed;bottom:0;left:0;width:100%;height:200px;b
     </svg>
     <div class="logo">
       <div style="font-size:13px;font-weight:400;font-family:'Pacifico',cursive;color:#ffffff;background:linear-gradient(135deg,#7F77DD,#D4537E,#F0997B);padding:8px 14px;border-radius:30px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><i class="ti ti-sparkles" style="font-size:14px"></i>HKT REPORT</div>
-      <div class="logo-sub" style="margin-top:6px">Historical Knowledge Tracker</div>
+      <div class="logo-sub hkt-subtitle-track" style="margin-top:6px;width:160px">
+        <div class="hkt-subtitle-scroll"><span>Historical Knowledge Tracker</span><span>Historical Knowledge Tracker</span></div>
+      </div>
     </div>
     <nav class="nav">
       <button class="nav-item active" onclick="showPage('dashboard',this)">
